@@ -10,12 +10,7 @@ export interface TableViewProps
 const TableView = ({ className, children }: TableViewProps) => {
   return (
     <div className="m-4 overflow-x-auto">
-      <div
-        className={cn(
-          'w-full border-collapse border border-solid border-gray-400',
-          className
-        )}
-      >
+      <div className={cn('w-full border border-gray-400', className)}>
         {children}
       </div>
     </div>

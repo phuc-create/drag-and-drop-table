@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import viteLogo from '/vite.svg'
 import { mockTableData } from './mock-data'
 import {
   TableView,
@@ -9,18 +8,33 @@ import {
   TableViewHeader
 } from './components/TableView'
 import './App.css'
+import DropIndicator from './components/TableView/DropIndicator'
+import { cn } from './utils/classname'
 type HeaderNode = { key: string; node: string }
 type DataKey = keyof (typeof mockTableData)[0]
 
-function App() {
-  const [columnHeader, setColumnHeader] = useState<HeaderNode[]>([])
-  const [isDragging, setIsDragging] = useState(false)
+interface TableColumnView<T> {
+  columns: HeaderNode[]
+  head: HeaderNode
+  data: T[]
+  order: number
+  handleSetColumns: (columns: HeaderNode[]) => void
+}
+
+const TableColumnView = <T extends Record<string, any>>({
+  columns,
+  head,
+  data,
+  order,
+  handleSetColumns
+}: TableColumnView<T>) => {
+  const [active, setActive] = useState(false)
 
   const handleDragStart = (
     e: React.DragEvent<HTMLDivElement>,
     index: number
   ) => {
-    setIsDragging(true)
+    setActive(true)
     console.log(e.dataTransfer)
     e.dataTransfer.setData('columnIndex', index + '')
   }
@@ -35,18 +49,63 @@ function App() {
     e.preventDefault()
     const dragIndex = e.dataTransfer.getData('columnIndex')
     if (dragIndex !== index + '') {
-      const newColumns = [...columnHeader]
+      const newColumns = [...columns]
       const [draggedColumn] = newColumns.splice(Number(dragIndex), 1)
       newColumns.splice(index, 0, draggedColumn)
-      setColumnHeader(newColumns)
+      handleSetColumns(newColumns)
     }
-    setIsDragging(false)
+    // setIsDragging(false)
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    setActive(false)
   }
 
   const preventChildrenDragEvent = (e: React.DragEvent<HTMLDivElement>) => {
     // children node should have draggble attribute so that this one can work as expected
     e.preventDefault()
     // e.stopPropagation()
+  }
+
+  return (
+    <TableViewColumn
+      draggable
+      onDragStart={e => handleDragStart(e, order)}
+      onDragEnd={handleDragLeave}
+      onDragOver={allowDrop}
+      onDrop={e => handleDragOver(e, order)}
+      className={cn(
+        'border-2 border-transparent',
+        active ? 'border-dashed border-green-700' : '',
+        active ? 'opacity-20' : 'opacity-100'
+      )}
+    >
+      {/* <DropIndicator /> */}
+      <TableViewHead className="cursor-grab p-2 active:cursor-grabbing">
+        {head.node}
+      </TableViewHead>
+      {data.map((row, id) => {
+        return (
+          <TableViewCell
+            draggable
+            key={id}
+            className="p-2"
+            onDragStart={preventChildrenDragEvent}
+          >
+            {row[head.key as DataKey]}
+          </TableViewCell>
+        )
+      })}
+      {/* <DropIndicator /> */}
+    </TableViewColumn>
+  )
+}
+
+function App() {
+  const [columnHeader, setColumnHeader] = useState<HeaderNode[]>([])
+
+  const handleSetColumns = (columns: HeaderNode[]) => {
+    setColumnHeader(columns)
   }
 
   // effects
@@ -69,32 +128,16 @@ function App() {
       </div>
       <TableView>
         <TableViewHeader className="group">
-          {columnHeader.map((head, id) => {
+          {columnHeader.map((head, order) => {
             return (
-              <TableViewColumn
-                key={head.key + '-' + id}
-                draggable
-                onDragStart={e => handleDragStart(e, id)}
-                onDragEnd={() => setIsDragging(false)}
-                onDragOver={allowDrop}
-                onDrop={e => handleDragOver(e, id)}
-              >
-                <TableViewHead className="p-2 hover:cursor-move">
-                  {head.node}
-                </TableViewHead>
-                {mockTableData.map(row => {
-                  return (
-                    <TableViewCell
-                      draggable
-                      key={row.id}
-                      className="p-2"
-                      onDragStart={preventChildrenDragEvent}
-                    >
-                      {row[head.key as DataKey]}
-                    </TableViewCell>
-                  )
-                })}
-              </TableViewColumn>
+              <TableColumnView
+                key={head.key + '-' + order}
+                columns={columnHeader}
+                head={head}
+                data={mockTableData}
+                handleSetColumns={handleSetColumns}
+                order={order}
+              />
             )
           })}
         </TableViewHeader>

@@ -11,7 +11,7 @@ const TableViewColumn: React.FC<TableViewColumnProps> = ({
 }) => {
   return (
     <div
-      className={cn('flex flex-col text-left grow bg-white', className)}
+      className={cn('flex grow flex-col bg-white text-left', className)}
       {...props}
     >
       {children}
