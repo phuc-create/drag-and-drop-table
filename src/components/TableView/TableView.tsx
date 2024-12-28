@@ -9,10 +9,10 @@ export interface TableViewProps
 
 const TableView = ({ className, children }: TableViewProps) => {
   return (
-    <div className="overflow-x-auto m-4">
+    <div className="m-4 overflow-x-auto">
       <div
         className={cn(
-          'border border-gray-400 w-full border-solid border-collapse',
+          'w-full border-collapse border border-solid border-gray-400',
           className
         )}
       >

@@ -5,7 +5,13 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
+    'plugin:react/recommended',
   ],
+  settings: {
+    react: {
+      version: "detect",
+    },
+  },
   ignorePatterns: ['dist', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'prettier'],
@@ -30,7 +36,6 @@ module.exports = {
     'react/jsx-boolean-value': 'off',
     'react/jsx-pascal-case': 'off',
     'react/jsx-handler-names': 'off',
-    // "react-hooks/exhaustive-deps": "off",
     'react/jsx-indent-props': [2, 2],
     'jsx-quotes': ['error', 'prefer-double'],
     'space-before-function-paren': [
