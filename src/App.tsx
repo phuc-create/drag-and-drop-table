@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import viteLogo from '/vite.svg'
 import { mockTableData } from './mock-data'
 import {
@@ -9,13 +9,11 @@ import {
   TableViewHeader
 } from './components/TableView'
 import './App.css'
-
+type HeaderNode = { key: string; node: string }
 type DataKey = keyof (typeof mockTableData)[0]
 
 function App() {
-  const [columnHeader, setColumnHeader] = useState<
-    { key: string; node: string }[]
-  >([])
+  const [columnHeader, setColumnHeader] = useState<HeaderNode[]>([])
   const [isDragging, setIsDragging] = useState(false)
 
   const handleDragStart = (
@@ -45,6 +43,12 @@ function App() {
     setIsDragging(false)
   }
 
+  const preventChildrenDragEvent = (e: React.DragEvent<HTMLDivElement>) => {
+    // children node should have draggble attribute so that this one can work as expected
+    e.preventDefault()
+    // e.stopPropagation()
+  }
+
   // effects
   useEffect(() => {
     let headerData: { key: string; node: string }[] = []
@@ -61,12 +65,9 @@ function App() {
   return (
     <>
       <div className="flex flex-col items-center justify-center">
-        <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <h1>Vite + React</h1>
+        <h1>Drag and Drop table (Vite + React + Bun) </h1>
       </div>
-      <TableView className="mb-8">
+      <TableView>
         <TableViewHeader className="group">
           {columnHeader.map((head, id) => {
             return (
@@ -83,7 +84,12 @@ function App() {
                 </TableViewHead>
                 {mockTableData.map(row => {
                   return (
-                    <TableViewCell key={row.id} className="p-2">
+                    <TableViewCell
+                      draggable
+                      key={row.id}
+                      className="p-2"
+                      onDragStart={preventChildrenDragEvent}
+                    >
                       {row[head.key as DataKey]}
                     </TableViewCell>
                   )
