@@ -40,6 +40,7 @@ const TableColumnView = <T extends Record<string, any>>({
   }
   const allowDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
+    highlightIndicator(e)
   }
 
   const handleDragOver = (
@@ -54,11 +55,11 @@ const TableColumnView = <T extends Record<string, any>>({
       newColumns.splice(index, 0, draggedColumn)
       handleSetColumns(newColumns)
     }
-    // setIsDragging(false)
   }
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     setActive(false)
+    clearIndicator()
   }
 
   const preventChildrenDragEvent = (e: React.DragEvent<HTMLDivElement>) => {
@@ -67,20 +68,59 @@ const TableColumnView = <T extends Record<string, any>>({
     // e.stopPropagation()
   }
 
+  const getOrderIndicator = () => {
+    return Array.from(document.querySelectorAll(`[data-order="${order}"]`))
+  }
+
+  const clearIndicator = (els?: Element[]) => {
+    const indicators = els || getOrderIndicator()
+
+    // reset classname as the drag area no longer in the specific view of column
+    indicators.forEach(el =>
+      el.classList.remove('outline', 'outline-dashed', 'outline-red-700')
+    )
+  }
+
+  const highlightIndicator = (e: React.DragEvent<HTMLDivElement>) => {
+    const DISTANCE_OFFSET = 20
+    const columnsIndicators = getOrderIndicator()
+    clearIndicator(columnsIndicators)
+    const els = columnsIndicators.reduce<{ offset: number; element: Element }>(
+      (closet, child) => {
+        const box = child.getBoundingClientRect()
+        const offset = e.clientX - (box.left + DISTANCE_OFFSET)
+        if (offset < 0 && offset > (closet?.offset || 0)) {
+          return { offset: offset, element: child }
+        } else {
+          return closet
+        }
+      },
+      {
+        offset: Number.NEGATIVE_INFINITY,
+        element: columnsIndicators[columnsIndicators.length - 1]
+      }
+    )
+
+    els.element.classList.add('outline', 'outline-dashed', 'outline-red-700')
+  }
+
   return (
     <TableViewColumn
       draggable
       onDragStart={e => handleDragStart(e, order)}
-      onDragEnd={handleDragLeave}
+      onDragEnd={handleDragEnd}
+      onDragLeave={handleDragEnd}
       onDragOver={allowDrop}
       onDrop={e => handleDragOver(e, order)}
       className={cn(
-        'border-2 border-transparent',
-        active ? 'border-dashed border-green-700' : '',
-        active ? 'opacity-20' : 'opacity-100'
+        'border-2 border-transparent outline-2 outline-offset-2',
+        'opacity-100 active:opacity-20',
+        active ? 'border-dashed border-green-700' : ''
       )}
+      // since the data is generic, so I use order index for detect drag drop area
+      data-order={order + ''}
     >
-      {/* <DropIndicator /> */}
+      <DropIndicator />
       <TableViewHead className="cursor-grab p-2 active:cursor-grabbing">
         {head.node}
       </TableViewHead>
@@ -96,7 +136,7 @@ const TableColumnView = <T extends Record<string, any>>({
           </TableViewCell>
         )
       })}
-      {/* <DropIndicator /> */}
+      <DropIndicator />
     </TableViewColumn>
   )
 }
