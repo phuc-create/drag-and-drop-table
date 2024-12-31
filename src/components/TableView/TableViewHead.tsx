@@ -13,7 +13,7 @@ const TableViewHead: React.FC<TableViewHeadProps> = ({
     <div
       {...props}
       className={cn(
-        'bg-gray-200 items-center justify-start font-bold cursor-move',
+        'cursor-move items-center justify-start bg-gray-200 font-bold capitalize text-gray-600',
         className
       )}
     >
