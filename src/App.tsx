@@ -34,79 +34,14 @@ const DraggableColumnView = <T extends Record<string, any>>({
   const [active, setActive] = useState(false)
   const [hoverOver, setHoverOver] = useState(false)
 
-  // const handleDragStart = (
-  //   e: React.DragEvent<HTMLDivElement>,
-  //   index: number
-  // ) => {
-  //   setActive(true)
-  //   console.log(e.dataTransfer)
-  //   e.dataTransfer.setData('columnIndex', index + '')
-  // }
-
-  // const allowDrop = (e: React.DragEvent<HTMLDivElement>) => {
-  //   e.preventDefault()
-  //   highlightIndicator(e)
-  // }
-
-  // const handleDragOver = (
-  //   e: React.DragEvent<HTMLDivElement>,
-  //   index: number
-  // ) => {
-  //   e.preventDefault()
-  //   const dragIndex = e.dataTransfer.getData('columnIndex')
-  //   if (dragIndex !== index + '') {
-  //     const newColumns = [...columns]
-  //     const [draggedColumn] = newColumns.splice(Number(dragIndex), 1)
-  //     newColumns.splice(index, 0, draggedColumn)
-  //     handleSetColumns(newColumns)
-  //   }
-  //   setActive(false)
-  //   clearIndicator()
-  // }
-
-  const getOrderIndicator = () => {
-    return Array.from(document.querySelectorAll(`[data-order="${order}"]`))
-  }
-
-  const clearIndicator = (els?: Element[]) => {
-    const indicators = els || getOrderIndicator()
-
-    // reset classname as the drag area no longer in the specific view of column
-    indicators.forEach(el =>
-      el.classList.remove('border-dashed', 'border-red-700')
-    )
-  }
-
-  // const highlightIndicator = (e: React.DragEvent<HTMLDivElement>) => {
-  //   const DISTANCE_OFFSET = 20
-  //   const columnsIndicators = getOrderIndicator()
-  //   clearIndicator(columnsIndicators)
-  //   const els = columnsIndicators.reduce<{ offset: number; element: Element }>(
-  //     (closet, child) => {
-  //       const box = child.getBoundingClientRect()
-  //       const offset = e.clientX - (box.left + DISTANCE_OFFSET)
-  //       if (offset < 0 && offset > (closet?.offset || 0)) {
-  //         return { offset: offset, element: child }
-  //       } else {
-  //         return closet
-  //       }
-  //     },
-  //     {
-  //       offset: Number.NEGATIVE_INFINITY,
-  //       element: columnsIndicators[columnsIndicators.length - 1]
-  //     }
-  //   )
-
-  //   els.element.classList.add('border-dashed', 'border-red-700')
-  // }
-
   const dragStart = (e: MouseEvent) => {
     e.preventDefault()
     if (!dragNodeRef.current) return
     setActive(true)
     const node = dragNodeRef.current
-
+    node.style.pointerEvents = 'none'
     node.style.zIndex = '100'
+
     document.addEventListener('mousemove', dragMove)
     document.addEventListener('mouseup', dragEnd)
 
@@ -122,6 +57,22 @@ const DraggableColumnView = <T extends Record<string, any>>({
 
       node.style.top = e.clientY - 20 + 'px'
       node.style.left = e.clientX + window.scrollX - rect.width / 2 + 'px'
+
+      // detect the column under the cursor
+      const allColumns = document.querySelectorAll('[data-order]')
+      // allColumns.forEach(col => col.classList.remove('hover-highlight')) // Remove previous highlights
+
+      const currentCusor = document.elementFromPoint(
+        e.clientX,
+        e.clientY
+      ) as HTMLElement
+      const targetColumn = currentCusor?.closest('[data-order]')
+      // skip hightlight if same node
+      if (targetColumn && !targetColumn.isSameNode(node)) {
+        // targetColumn.classList.add('hover-highlight') // Highlight the current column
+        const hoverOrder = targetColumn.getAttribute('data-order')
+        console.log('Hovering over order:', hoverOrder)
+      }
     }
   }
 
@@ -130,7 +81,34 @@ const DraggableColumnView = <T extends Record<string, any>>({
     if (!dragNodeRef.current || !targetRef.current) return
     setActive(false)
     setHoverOver(false)
+    const allColumns = document.querySelectorAll('[data-order]')
+    // allColumns.forEach(col => col.classList.remove('hover-highlight')) // Clear highlights
+
+    // there always have element on screen
+    const currentCusor = document.elementFromPoint(
+      e.clientX,
+      e.clientY
+    ) as HTMLElement
+    const targetColumn = currentCusor?.closest('[data-order]')
+    const dropOrder = targetColumn?.getAttribute('data-order')
+
+    if (dropOrder) {
+      console.log('Dropped on order:', dropOrder)
+
+      // reordering logic
+      const newColumns = [...columns]
+      const draggedColumn = newColumns.splice(order, 1)[0]
+      newColumns.splice(Number(dropOrder), 0, draggedColumn)
+
+      handleSetColumns(newColumns)
+    }
+    if (dropOrder && dropOrder === order + '') {
+      setTimeout(() => {
+        setHoverOver(true)
+      }, 0)
+    }
     resetPos()
+
     dragNodeRef.current.style.zIndex = ''
     document.removeEventListener('mousemove', dragMove)
     document.removeEventListener('mouseup', dragEnd)
@@ -175,8 +153,8 @@ const DraggableColumnView = <T extends Record<string, any>>({
           >
             <TableViewHead
               className={cn(
-                'cursor-grab border-2 border-b-0 border-transparent p-2',
-                active ? 'border-dashed border-green-700' : ''
+                'cursor-grab border-2 border-b-0 border-transparent p-2'
+                // active ? 'border-dashed border-green-700' : ''
               )}
               onMouseLeave={() => setHoverOver(false)}
             >
@@ -187,9 +165,9 @@ const DraggableColumnView = <T extends Record<string, any>>({
                 <TableViewCell
                   key={id}
                   className={cn(
-                    'border-x-2 border-x-transparent p-2',
-                    active ? 'border-dashed border-x-green-700' : '',
-                    id === data.length - 1 && 'border-b-2 border-b-green-700'
+                    'border-x-2 border-x-transparent p-2'
+                    // active ? 'border-dashed border-x-green-700' : '',
+                    // id === data.length - 1 && 'border-b-2 border-b-green-700'
                   )}
                 >
                   {row[head.key as DataKey]}
@@ -207,7 +185,6 @@ const DraggableColumnView = <T extends Record<string, any>>({
           'z-10 box-border',
           active ? 'border-dashed border-green-700 opacity-20' : ''
         )}
-        onMouseMove={() => console.log('you are in', order)}
         // since the data is generic, so I use order index for detect drag drop area
         data-order={order + ''}
       >
