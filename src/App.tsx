@@ -142,7 +142,7 @@ const DraggableColumnView = <T extends Record<string, any>>({
   }, [hoverOver])
 
   return (
-    <div className="group relative box-border flex grow border-l-2">
+    <div className={cn('group relative box-border flex grow')}>
       {hoverOver ? (
         <Portal>
           <TableViewColumn
@@ -152,10 +152,7 @@ const DraggableColumnView = <T extends Record<string, any>>({
             data-order={order + ''}
           >
             <TableViewHead
-              className={cn(
-                'cursor-grab border-2 border-b-0 border-transparent p-2'
-                // active ? 'border-dashed border-green-700' : ''
-              )}
+              className={cn('cursor-grab border-transparent p-2')}
               onMouseLeave={() => setHoverOver(false)}
             >
               {head.node}
@@ -165,8 +162,7 @@ const DraggableColumnView = <T extends Record<string, any>>({
                 <TableViewCell
                   key={id}
                   className={cn(
-                    'border-x-2 border-x-transparent p-2'
-                    // active ? 'border-dashed border-x-green-700' : '',
+                    'p-2'
                     // id === data.length - 1 && 'border-b-2 border-b-green-700'
                   )}
                 >
@@ -189,19 +185,14 @@ const DraggableColumnView = <T extends Record<string, any>>({
         data-order={order + ''}
       >
         <TableViewHead
-          className={cn(
-            'cursor-grab border-2 border-b-0 p-2 active:cursor-grabbing'
-          )}
+          className={cn('cursor-grab p-2 active:cursor-grabbing')}
           onMouseOver={() => setHoverOver(true)}
         >
           {head.node}
         </TableViewHead>
         {data.map((row, id) => {
           return (
-            <TableViewCell
-              key={id}
-              className="select-none border-x-2 border-x-transparent p-2"
-            >
+            <TableViewCell key={id} className={cn('select-none p-2')}>
               {row[head.key as DataKey]}
             </TableViewCell>
           )
