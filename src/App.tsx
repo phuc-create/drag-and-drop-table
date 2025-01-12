@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { mockTableData } from './mock-data'
 
 import './App.css'
@@ -260,6 +260,8 @@ function App() {
     setDraggingOder('')
   }
 
+  const colKeys = useMemo(() => cols.map(c => c.node), [cols])
+
   return (
     <>
       <div className="flex flex-col items-center justify-center">
@@ -306,12 +308,12 @@ function App() {
                     key={val + '-' + Math.random()}
                     className={cn(
                       'border-l-2 border-l-white font-medium',
-                      draggingOrder === cols.map(c => c.node)[idx]
+                      draggingOrder === colKeys[idx]
                         ? 'border-dashed border-l-green-700'
                         : ''
                     )}
                   >
-                    {row[cols.map(c => c.node)[idx]]}
+                    {row[colKeys[idx]]}
                   </TableCell>
                 )
               })}
