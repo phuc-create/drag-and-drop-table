@@ -12,7 +12,7 @@ const TableViewRow: React.FC<TableViewRowProps> = ({
   return (
     <div
       {...props}
-      className={cn('w-full flex items-center justify-between', className)}
+      className={cn('flex w-full items-center justify-between', className)}
     >
       {children}
     </div>

@@ -1,146 +1,199 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { mockTableData } from './mock-data'
-import {
-  TableView,
-  TableViewCell,
-  TableViewColumn,
-  TableViewHead,
-  TableViewHeader
-} from './components/TableView'
-import './App.css'
-import DropIndicator from './components/TableView/DropIndicator'
-import { cn } from './utils/classname'
-type HeaderNode = { key: string; node: string }
-type DataKey = keyof (typeof mockTableData)[0]
 
-interface TableColumnView<T> {
+import './App.css'
+import { cn } from './utils/classname'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from './components/Table'
+import Portal from './components/Portal'
+type HeaderNode = { key: string; node: string }
+
+interface DraggableColumnProps<T> {
   columns: HeaderNode[]
   head: HeaderNode
   data: T[]
   order: number
   handleSetColumns: (columns: HeaderNode[]) => void
 }
+const d = 'dragging'
 
-const TableColumnView = <T extends Record<string, any>>({
+const DraggableColumn = <T extends Record<string, any>>({
   columns,
   head,
   data,
   order,
   handleSetColumns
-}: TableColumnView<T>) => {
+}: DraggableColumnProps<T>) => {
+  const dragNodeRef = useRef<HTMLTableElement | null>(null)
+  const targetRef = useRef<HTMLTableCellElement | null>(null)
   const [active, setActive] = useState(false)
+  const [hoverOver, setHoverOver] = useState(false)
 
-  const handleDragStart = (
-    e: React.DragEvent<HTMLDivElement>,
-    index: number
-  ) => {
+  const dragStart = (e: MouseEvent) => {
+    e.preventDefault()
+    if (!dragNodeRef.current) return
     setActive(true)
-    console.log(e.dataTransfer)
-    e.dataTransfer.setData('columnIndex', index + '')
-  }
-  const allowDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    highlightIndicator(e)
+    const node = dragNodeRef.current
+    node.style.pointerEvents = 'none'
+    node.style.zIndex = '100'
+
+    document.addEventListener('mousemove', dragMove)
+    document.addEventListener('mouseup', dragEnd)
+
+    node.classList.add(d)
+    document.body.style.cursor = 'move'
   }
 
-  const handleDragOver = (
-    e: React.DragEvent<HTMLDivElement>,
-    index: number
-  ) => {
+  const dragMove = (e: MouseEvent) => {
+    document.documentElement.style.overflow = 'hidden'
     e.preventDefault()
-    const dragIndex = e.dataTransfer.getData('columnIndex')
-    if (dragIndex !== index + '') {
-      const newColumns = [...columns]
-      const [draggedColumn] = newColumns.splice(Number(dragIndex), 1)
-      newColumns.splice(index, 0, draggedColumn)
-      handleSetColumns(newColumns)
+    if (dragNodeRef.current) {
+      const node = dragNodeRef.current
+      const rect = node.getBoundingClientRect()
+
+      node.style.top = e.clientY - 20 + 'px'
+      node.style.left = e.clientX + window.scrollX - rect.width / 2 + 'px'
+
+      // detect the column under the cursor
+      const allColumns = document.querySelectorAll('[data-order]')
+      // allColumns.forEach(col => col.classList.remove('hover-highlight')) // Remove previous highlights
+
+      const currentCusor = document.elementFromPoint(
+        e.clientX,
+        e.clientY
+      ) as HTMLElement
+      const targetColumn = currentCusor?.closest('[data-order]')
+      // skip hightlight if same node
+      if (targetColumn && !targetColumn.isSameNode(node)) {
+        // targetColumn.classList.add('hover-highlight') // Highlight the current column
+        const hoverOrder = targetColumn.getAttribute('data-order')
+        console.log('Hovering over order:', hoverOrder)
+      }
     }
   }
 
-  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
-    setActive(false)
-    clearIndicator()
-  }
-
-  const preventChildrenDragEvent = (e: React.DragEvent<HTMLDivElement>) => {
-    // children node should have draggble attribute so that this one can work as expected
+  const dragEnd = (e: MouseEvent) => {
     e.preventDefault()
-    // e.stopPropagation()
+    if (!dragNodeRef.current || !targetRef.current) return
+    setActive(false)
+    setHoverOver(false)
+    const allColumns = document.querySelectorAll('[data-order]')
+    // allColumns.forEach(col => col.classList.remove('hover-highlight')) // Clear highlights
+
+    // there always have element on screen
+    const currentCusor = document.elementFromPoint(
+      e.clientX,
+      e.clientY
+    ) as HTMLElement
+    const targetColumn = currentCusor?.closest('[data-order]')
+    const dropOrder = targetColumn?.getAttribute('data-order')
+
+    console.log('drop order', dropOrder)
+    if (dropOrder) {
+      console.log('Dropped on order:', dropOrder)
+
+      // reordering logic
+      const newColumns = [...columns]
+      const draggedColumn = newColumns.splice(order, 1)[0]
+      newColumns.splice(Number(dropOrder), 0, draggedColumn)
+
+      handleSetColumns(newColumns)
+    }
+    if (dropOrder && dropOrder === order + '') {
+      setTimeout(() => {
+        setHoverOver(true)
+      }, 0)
+    }
+    resetPos()
+
+    dragNodeRef.current.style.zIndex = ''
+    document.removeEventListener('mousemove', dragMove)
+    document.removeEventListener('mouseup', dragEnd)
+
+    document.body.style.cursor = ''
+    document.documentElement.style.overflow = ''
   }
 
-  const getOrderIndicator = () => {
-    return Array.from(document.querySelectorAll(`[data-order="${order}"]`))
+  const resetPos = () => {
+    if (!dragNodeRef.current || !targetRef.current) return
+    const targetRect = targetRef.current.getBoundingClientRect()
+    const node = dragNodeRef.current
+    node.style.top = targetRect.top + 'px'
+    node.style.left = targetRect.left + 'px'
+    node.style.width = targetRect.width + 'px'
+
+    node.classList.remove(d)
   }
 
-  const clearIndicator = (els?: Element[]) => {
-    const indicators = els || getOrderIndicator()
+  useEffect(() => {
+    resetPos()
+  }, [hoverOver])
 
-    // reset classname as the drag area no longer in the specific view of column
-    indicators.forEach(el =>
-      el.classList.remove('outline', 'outline-dashed', 'outline-red-700')
-    )
-  }
-
-  const highlightIndicator = (e: React.DragEvent<HTMLDivElement>) => {
-    const DISTANCE_OFFSET = 20
-    const columnsIndicators = getOrderIndicator()
-    clearIndicator(columnsIndicators)
-    const els = columnsIndicators.reduce<{ offset: number; element: Element }>(
-      (closet, child) => {
-        const box = child.getBoundingClientRect()
-        const offset = e.clientX - (box.left + DISTANCE_OFFSET)
-        if (offset < 0 && offset > (closet?.offset || 0)) {
-          return { offset: offset, element: child }
-        } else {
-          return closet
-        }
-      },
-      {
-        offset: Number.NEGATIVE_INFINITY,
-        element: columnsIndicators[columnsIndicators.length - 1]
-      }
-    )
-
-    els.element.classList.add('outline', 'outline-dashed', 'outline-red-700')
-  }
+  useEffect(() => {
+    const node = dragNodeRef.current
+    if (node) {
+      node.addEventListener('mousedown', dragStart)
+    }
+    return () => {
+      node?.removeEventListener('mousedown', dragStart)
+    }
+  }, [hoverOver])
 
   return (
-    <TableViewColumn
-      draggable
-      onDragStart={e => handleDragStart(e, order)}
-      onDragEnd={handleDragEnd}
-      onDragLeave={handleDragEnd}
-      onDragOver={allowDrop}
-      onDrop={e => handleDragOver(e, order)}
-      className={cn(
-        'border-2 border-transparent outline-2 outline-offset-2',
-        'opacity-100 active:opacity-20',
-        active ? 'border-dashed border-green-700' : ''
-      )}
-      // since the data is generic, so I use order index for detect drag drop area
-      data-order={order + ''}
-    >
-      <DropIndicator />
-      <TableViewHead className="cursor-grab p-2 active:cursor-grabbing">
-        {head.node}
-      </TableViewHead>
-      {data.map((row, id) => {
-        return (
-          <TableViewCell
-            draggable
-            key={id}
-            className="p-2"
-            onDragStart={preventChildrenDragEvent}
+    <>
+      {hoverOver ? (
+        <Portal>
+          <Table
+            ref={dragNodeRef}
+            className={cn('absolute z-10', active && 'shadow-xl')}
+            onMouseLeave={() => setHoverOver(false)}
           >
-            {row[head.key as DataKey]}
-          </TableViewCell>
-        )
-      })}
-      <DropIndicator />
-    </TableViewColumn>
+            <TableHeader className={cn('cursor-grab')}>
+              <TableRow>
+                <TableHead
+                  // since the data is generic, so I use order index for detect drag drop area
+                  data-order={order + ''}
+                >
+                  {head.node}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row, id) => {
+                return (
+                  <TableRow key={id}>
+                    <TableCell>{row[head.key]}</TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Portal>
+      ) : null}
+
+      {/* Visible column */}
+      <TableHead
+        key={head.key}
+        ref={targetRef}
+        className={cn(
+          'z-10 box-border cursor-grab active:cursor-grabbing',
+          active ? 'opacity-20' : ''
+        )}
+        // since the data is generic, so I use order index for detect drag drop area
+        data-order={order + ''}
+        onMouseOver={() => setHoverOver(true)}
+      >
+        {head.node}
+      </TableHead>
+    </>
   )
 }
-
 function App() {
   const [columnHeader, setColumnHeader] = useState<HeaderNode[]>([])
 
@@ -161,27 +214,50 @@ function App() {
     setColumnHeader(headerData)
   }, [])
 
+  const renderRows = useCallback(() => {
+    return (
+      <TableBody>
+        {mockTableData.map(row => (
+          <TableRow key={row.id}>
+            {columnHeader.map(col => {
+              return (
+                <TableCell key={col.key} className="font-medium">
+                  {(row as any)[col.key]}
+                </TableCell>
+              )
+            })}
+          </TableRow>
+        ))}
+      </TableBody>
+    )
+  }, [columnHeader])
+
   return (
     <>
       <div className="flex flex-col items-center justify-center">
         <h1>Drag and Drop table (Vite + React + Bun) </h1>
       </div>
-      <TableView>
-        <TableViewHeader className="group">
-          {columnHeader.map((head, order) => {
-            return (
-              <TableColumnView
-                key={head.key + '-' + order}
-                columns={columnHeader}
-                head={head}
-                data={mockTableData}
-                handleSetColumns={handleSetColumns}
-                order={order}
-              />
-            )
-          })}
-        </TableViewHeader>
-      </TableView>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columnHeader.map((head, i) => {
+              return (
+                <DraggableColumn
+                  key={head.key}
+                  columns={columnHeader}
+                  head={head}
+                  data={mockTableData}
+                  order={i}
+                  handleSetColumns={handleSetColumns}
+                />
+              )
+            })}
+          </TableRow>
+        </TableHeader>
+
+        {renderRows()}
+      </Table>
     </>
   )
 }
