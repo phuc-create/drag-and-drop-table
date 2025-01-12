@@ -228,16 +228,18 @@ const DraggableColumn = <T extends Record<string, any>>({
 type ColumnType = { node: string; disabled: boolean }
 function App() {
   const targetRef = useRef<HTMLTableCellElement | null>(null)
-  const [data, setData] = useState<Record<string, any>[]>(mockTableData)
+  const [rows, setRows] = useState<Record<string, any>[]>(mockTableData)
 
   const [cols, setCols] = useState<Array<ColumnType>>(
     Object.keys(mockTableData[0]).map(k => ({ node: k, disabled: false }))
   )
   // const [rows, setRows] = useState(data)
   const [draggingOrder, setDraggingOder] = useState('')
+  const colKeys = useMemo(() => cols.map(c => c.node), [cols])
+
   const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>) => {
     const { id } = e.currentTarget
-    const order = cols.map(c => c.node).indexOf(id)
+    const order = colKeys.indexOf(id)
     e.dataTransfer.setData('order', order + '')
   }
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) =>
@@ -249,7 +251,7 @@ function App() {
 
   const handleOnDrop = (e: React.DragEvent<HTMLTableCellElement>) => {
     const { id } = e.currentTarget
-    const droppedOrder = cols.map(c => c.node).indexOf(id)
+    const droppedOrder = colKeys.indexOf(id)
     const draggedOrder = +e.dataTransfer.getData('order')
     const copy = [...cols]
 
@@ -259,8 +261,6 @@ function App() {
     setCols(copy)
     setDraggingOder('')
   }
-
-  const colKeys = useMemo(() => cols.map(c => c.node), [cols])
 
   return (
     <>
@@ -285,7 +285,6 @@ function App() {
                       ? 'border-dashed border-l-green-700 opacity-20'
                       : ''
                   )}
-                  // since the data is generic, so I use order index for detect drag drop area
                   draggable
                   onDragStart={e => handleDragStart(e)}
                   onDragOver={handleDragOver}
@@ -300,7 +299,7 @@ function App() {
         </TableHeader>
 
         <TableBody>
-          {data.map(row => (
+          {rows.map(row => (
             <TableRow key={row.id}>
               {Object.entries(row).map(([key, val], idx) => {
                 return (
