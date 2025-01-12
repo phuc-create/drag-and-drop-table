@@ -120,6 +120,34 @@ const DraggableColumn = <T extends Record<string, any>>({
     document.documentElement.style.overflow = ''
   }
 
+  const [cols, setCols] = useState(columns)
+  const [rows, setRows] = useState(data)
+  const [dragOver, setDragOver] = useState('')
+  console.log(cols)
+  const handleDragStart = (e: React.DragEvent<HTMLTableElement>) => {
+    const { id } = e.target
+    const idx = cols.indexOf(id)
+    e.dataTransfer.setData('colIdx', idx)
+  }
+
+  const handleDragOver = e => e.preventDefault()
+  const handleDragEnter = e => {
+    const { id } = e.target
+    setDragOver(id)
+  }
+
+  const handleOnDrop = e => {
+    const { id } = e.target
+    const droppedColIdx = cols.indexOf(id)
+    const draggedColIdx = e.dataTransfer.getData('colIdx')
+    const tempCols = [...cols]
+
+    tempCols[draggedColIdx] = cols[droppedColIdx]
+    tempCols[droppedColIdx] = cols[draggedColIdx]
+    setCols(tempCols)
+    setDragOver('')
+  }
+
   const resetPos = () => {
     if (!dragNodeRef.current || !targetRef.current) return
     const targetRect = targetRef.current.getBoundingClientRect()
@@ -152,7 +180,10 @@ const DraggableColumn = <T extends Record<string, any>>({
           <Table
             ref={dragNodeRef}
             className={cn('absolute z-10', active && 'shadow-xl')}
-            onMouseLeave={() => setHoverOver(false)}
+            onDragStart={e => handleDragStart(e)}
+            onDragOver={handleDragOver}
+            onDrop={handleOnDrop}
+            onDragEnter={handleDragEnter}
           >
             <TableHeader className={cn('cursor-grab')}>
               <TableRow>
@@ -194,43 +225,40 @@ const DraggableColumn = <T extends Record<string, any>>({
     </>
   )
 }
+type ColumnType = { node: string; disabled: boolean }
 function App() {
-  const [columnHeader, setColumnHeader] = useState<HeaderNode[]>([])
+  const targetRef = useRef<HTMLTableCellElement | null>(null)
+  const [data, setData] = useState<Record<string, any>[]>(mockTableData)
 
-  const handleSetColumns = (columns: HeaderNode[]) => {
-    setColumnHeader(columns)
+  const [cols, setCols] = useState<Array<ColumnType>>(
+    Object.keys(mockTableData[0]).map(k => ({ node: k, disabled: false }))
+  )
+  // const [rows, setRows] = useState(data)
+  const [draggingOrder, setDraggingOder] = useState('')
+  const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>) => {
+    const { id } = e.currentTarget
+    const order = cols.map(c => c.node).indexOf(id)
+    e.dataTransfer.setData('order', order + '')
+  }
+  const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) =>
+    e.preventDefault()
+  const handleDragEnter = (e: React.DragEvent<HTMLTableCellElement>) => {
+    const { id } = e.currentTarget
+    setDraggingOder(id)
   }
 
-  // effects
-  useEffect(() => {
-    let headerData: { key: string; node: string }[] = []
-    if (mockTableData.length > 0) {
-      const keys = Object.keys(mockTableData[0])
-      headerData = keys.map(key => ({
-        key,
-        node: key
-      }))
-    }
-    setColumnHeader(headerData)
-  }, [])
+  const handleOnDrop = (e: React.DragEvent<HTMLTableCellElement>) => {
+    const { id } = e.currentTarget
+    const droppedOrder = cols.map(c => c.node).indexOf(id)
+    const draggedOrder = +e.dataTransfer.getData('order')
+    const copy = [...cols]
 
-  const renderRows = useCallback(() => {
-    return (
-      <TableBody>
-        {mockTableData.map(row => (
-          <TableRow key={row.id}>
-            {columnHeader.map(col => {
-              return (
-                <TableCell key={col.key} className="font-medium">
-                  {(row as any)[col.key]}
-                </TableCell>
-              )
-            })}
-          </TableRow>
-        ))}
-      </TableBody>
-    )
-  }, [columnHeader])
+    // swap
+    copy[draggedOrder] = cols[droppedOrder]
+    copy[droppedOrder] = cols[draggedOrder]
+    setCols(copy)
+    setDraggingOder('')
+  }
 
   return (
     <>
@@ -241,22 +269,55 @@ function App() {
       <Table>
         <TableHeader>
           <TableRow>
-            {columnHeader.map((head, i) => {
+            {cols.map((col, i) => {
+              if (col.disabled) return null
               return (
-                <DraggableColumn
-                  key={head.key}
-                  columns={columnHeader}
-                  head={head}
-                  data={mockTableData}
-                  order={i}
-                  handleSetColumns={handleSetColumns}
-                />
+                <TableHead
+                  id={col.node}
+                  key={col.node}
+                  ref={targetRef}
+                  className={cn(
+                    'z-10 box-border cursor-grab border-l-2 active:cursor-grabbing',
+                    draggingOrder === col.node ? 'opacity-20' : '',
+                    draggingOrder === col.node
+                      ? 'border-dashed border-l-green-700 opacity-20'
+                      : ''
+                  )}
+                  // since the data is generic, so I use order index for detect drag drop area
+                  draggable
+                  onDragStart={e => handleDragStart(e)}
+                  onDragOver={handleDragOver}
+                  onDrop={handleOnDrop}
+                  onDragEnter={handleDragEnter}
+                >
+                  {col.node}
+                </TableHead>
               )
             })}
           </TableRow>
         </TableHeader>
 
-        {renderRows()}
+        <TableBody>
+          {data.map(row => (
+            <TableRow key={row.id}>
+              {Object.entries(row).map(([key, val], idx) => {
+                return (
+                  <TableCell
+                    key={val + '-' + Math.random()}
+                    className={cn(
+                      'border-l-2 border-l-white font-medium',
+                      draggingOrder === cols.map(c => c.node)[idx]
+                        ? 'border-dashed border-l-green-700'
+                        : ''
+                    )}
+                  >
+                    {row[cols.map(c => c.node)[idx]]}
+                  </TableCell>
+                )
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
       </Table>
     </>
   )
